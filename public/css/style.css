@@ -1,0 +1,185 @@
+/* -----------------------------------
+   Reset & base
+----------------------------------- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f0f2f5; /* subtle light background */
+    color: #1a202c; /* dark gray text */
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+/* -----------------------------------
+   Header & Navigation
+----------------------------------- */
+header {
+    background: linear-gradient(135deg, #4a90e2, #2d3748);
+    color: white;
+    padding: 1.2em 2em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+}
+
+header h1 {
+    font-size: 1.8rem;
+    letter-spacing: 1px;
+}
+
+nav a {
+    color: white;
+    margin-left: 1.5em;
+    text-decoration: none;
+    font-weight: 500;
+    position: relative;
+}
+
+nav a::after {
+    content: '';
+    display: block;
+    height: 2px;
+    width: 0;
+    background: #ffce00;
+    transition: width 0.3s;
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+}
+
+nav a:hover::after {
+    width: 100%;
+}
+
+/* -----------------------------------
+   Main content container
+----------------------------------- */
+main {
+    max-width: 900px;
+    margin: 2.5em auto;
+    padding: 2em;
+    background: rgba(255,255,255,0.95);
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    position: relative;
+    min-height: 60vh;
+}
+
+/* Placeholder for background image */
+main::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: url('../images/placeholder-bg.jpg') no-repeat center center;
+    background-size: cover;
+    opacity: 0.05;
+    border-radius: 12px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+main > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* -----------------------------------
+   Buttons
+----------------------------------- */
+button {
+    background: #4a90e2;
+    color: white;
+    border: none;
+    padding: 0.7em 1.5em;
+    border-radius: 6px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+}
+
+button:hover {
+    background: #357ab8;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* -----------------------------------
+   Forms
+----------------------------------- */
+form input[type="file"] {
+    padding: 0.5em;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    cursor: pointer;
+}
+
+form input[type="file"]:hover {
+    border-color: #4a90e2;
+}
+
+/* -----------------------------------
+   Calendar & cards
+----------------------------------- */
+#calendar div {
+    background: #e2e8f0;
+    padding: 1em;
+    margin: 0.5em 0;
+    border-radius: 8px;
+    transition: all 0.3s;
+}
+
+#calendar div:hover {
+    background: #4a90e2;
+    color: white;
+    transform: scale(1.02);
+    cursor: pointer;
+}
+
+/* Card for TSS detail */
+#details {
+    display: flex;
+    flex-direction: column;
+    gap: 1em;
+    background: #edf2f7;
+    padding: 1.5em;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+}
+
+#details p {
+    font-size: 1.05rem;
+}
+
+/* -----------------------------------
+   Footer
+----------------------------------- */
+footer {
+    background: #2d3748;
+    color: white;
+    text-align: center;
+    padding: 1em;
+    margin-top: 3em;
+}
+
+/* -----------------------------------
+   Responsive
+----------------------------------- */
+@media(max-width: 600px) {
+    header {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    nav a {
+        margin: 0.5em 0;
+    }
+}
+

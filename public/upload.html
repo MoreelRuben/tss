@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>TSS Tracker</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<main>
+    <h2>Upload TCX File</h2>
+    <form id="uploadForm">
+        <input type="file" name="tcxfile" accept=".tcx" required>
+        <button type="submit">Upload</button>
+    </form>
+    <div id="result"></div>
+</main>
+<script src="js/main.js"></script>
+<script>
+    const form = document.getElementById('uploadForm');
+    const resultDiv = document.getElementById('result');
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fileInput = form.querySelector('input[name="tcxfile"]');
+        const formData = new FormData();
+        formData.append('tcxfile', fileInput.files[0]);
+
+        const res = await fetch('/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+        resultDiv.innerHTML = `File queued! Job ID: ${data.jobId}`;
+    });
+</script>
+</body>
+</html>

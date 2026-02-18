@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>TSS Tracker</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<main>
+    <h2>Workout Details</h2>
+    <div id="details"></div>
+</main>
+<script src="js/main.js"></script>
+<script>
+const params = new URLSearchParams(window.location.search);
+const id = params.get('id');
+
+fetch(`/api/workouts/${id}`)
+    .then(res => res.json())
+    .then(data => {
+        let pace = 
+
+        document.getElementById('details').innerHTML = `
+            <p><strong>Date:</strong> ${data.workout_date}</p>
+            <p><strong>File:</strong> ${data.file_name}</p>
+            <p><strong>TSS:</strong> ${data.tss}</p>
+            <p><strong>Duration:</strong> ${secondsToHMS(data.duration_seconds)}</p>
+            <p><strong>Avg HR:</strong> ${Math.round(data.avg_hr)}</p>
+            <p><strong>Pace:</strong> ${secondsToKmPace(data.pace)}</p>
+            <p><strong>Distance:</strong> ${Math.round(data.distance / 10) /100} km</p>
+        `;
+    });
+
+function secondsToKmPace(seconds) {
+    // Convert total seconds to minutes
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.round(seconds % 60);
+
+    // Format seconds to always have 2 digits
+    const formattedSeconds = remainingSeconds.toString().padStart(2, '0');
+
+    return `${minutes}:${formattedSeconds} min/km`;
+}
+
+function secondsToHMS(seconds) {
+    const hours = Math.floor(seconds / 3600); // 1 hour = 3600 sec
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = ((seconds % 3600) % 60).toFixed(2); // keep 2 decimals
+
+    return `${hours}:${minutes.toString().padStart(2,'0')}:${remainingSeconds.toString().padStart(5,'0')}`;
+}
+</script>
+
+</body>
+</html>

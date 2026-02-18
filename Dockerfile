@@ -1,0 +1,16 @@
+FROM node:18
+
+WORKDIR /app
+
+# Install Node dependencies
+COPY package*.json ./
+RUN npm install
+
+# Copy rest of the app
+COPY . .
+
+EXPOSE 3000
+
+CMD ["node", "server.js"]
+
+
