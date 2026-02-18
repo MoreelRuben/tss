@@ -71,11 +71,13 @@ function calculateHRbasedTSS(durationSeconds, avgHR, maxHR = 190, fthr = 180) {
 async function processTCX(filePath) {
     const tcx = await parseTCX(filePath);
     const activity = tcx.TrainingCenterDatabase.Activities.Activity;
+    const date = activity.Id
 
     const { durationSeconds, distance, avgHR, avgPaceSecondsPerKm } = extractStats(activity);
     const tss = calculateHRbasedTSS(durationSeconds, avgHR);
 
     return {
+        date,
         durationSeconds,
         avgHR,
         distance,
@@ -104,14 +106,14 @@ tssQueue.process(async (job) => {
     }
 
     console.log("starting job: " + jobId)
-    const {durationSeconds, avgHR, distance, pace, tss} = await processTCX(filePath);
+    const {date, durationSeconds, avgHR, distance, pace, tss} = await processTCX(filePath);
     
 
     // Update DB with result
     await new Promise((resolve, reject) => {
         db.run(
-            "UPDATE workouts SET status = 'done', tss = ?, avg_hr = ?, duration_seconds = ?, distance = ?, pace = ?, processed_at = CURRENT_TIMESTAMP WHERE job_id = ?",
-            [tss, avgHR, durationSeconds, distance, pace, jobId],
+            "UPDATE workouts SET status = 'done', tss = ?, avg_hr = ?, duration_seconds = ?, distance = ?, pace = ?, workout_date = ?, processed_at = CURRENT_TIMESTAMP WHERE job_id = ?",
+            [tss, avgHR, durationSeconds, distance, pace, date, jobId],
             (err) => {
                 if (err) reject(err);
                 else resolve();

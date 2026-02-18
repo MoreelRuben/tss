@@ -33,7 +33,7 @@ db.run(`
         distance REAL,
         pace REAL,
         duration_seconds REAL,
-        workout_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+        workout_date DATETIME,
         processed_at DATETIME
     )
 `, (err) => {

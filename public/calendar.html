@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>TSS Tracker</title>
     <link rel="stylesheet" href="css/style.css">
+    <script src="js/index.global.js"></script>
 </head>
 <body>
 <main>
@@ -12,23 +13,27 @@
 </main>
 <script src="js/main.js"></script>
 <script>
-fetch('/api/workouts')
-    .then(res => res.json())
-    .then(data => {
-        const calendarDiv = document.getElementById('calendar');
+document.addEventListener('DOMContentLoaded', function() {
+    const calendarEl = document.getElementById('calendar');
 
-        data.forEach(w => {
-            const div = document.createElement('div');
-            div.innerHTML = `
-                <a href="detail.html?id=${w.id}">
-                    ${w.workout_date} - TSS: ${w.tss}
-                </a>
+    fetch('/api/workouts')
+        .then(res => res.json())
+        .then(data => {
+            const events = data.map(w => ({
+                title: `TSS: ${w.tss} (${w.status})`,
+                start: w.workout_date,
+                url: `detail.html?id=${w.id}`
+            }));
 
-            <p>${w.status}</p>
-            `;
-            calendarDiv.appendChild(div);
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                events: events,
+                eventColor: '#1E90FF'
+            });
+
+            calendar.render();
         });
-    });
+});
 </script>
 
 </body>
