@@ -4,7 +4,9 @@
   "description": "tss app",
   "main": "server.js",
   "scripts": {
-    "start": "docker compose up --build"
+    "start": "node server.js",
+    "worker": "node worker.js",
+    "dev": "docker-compose up --build"
   },
   "author": "",
   "license": "ISC",
