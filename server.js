@@ -4,46 +4,16 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const Queue = require('bull');
-const sqlite3 = require('sqlite3').verbose();
 const { v4: uuidv4 } = require('uuid');
+const db = require('./db');
 
 
 const app = express();
 const PORT = process.env.PORT || 3000;
  // npm install uuid
 
-const db = new sqlite3.Database('./tss.db', (err) => {
-    if (err) {
-        console.error("Failed to connect to DB:", err.message);
-        process.exit(1);
-    } else {
-        console.log("Connected to SQLite database.");
-    }
-});
 
-// Create table if it doesn't exist
-db.run(`
-    CREATE TABLE IF NOT EXISTS workouts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        job_id TEXT UNIQUE,
-        file_name TEXT,
-        status TEXT DEFAULT 'pending',
-        tss REAL,
-        avg_hr REAL,
-        distance REAL,
-        pace REAL,
-        duration_seconds REAL,
-        workout_date DATETIME,
-        processed_at DATETIME
-    )
-`, (err) => {
-    if (err) {
-        console.error("Failed to create table:", err.message);
-        process.exit(1);
-    } else {
-        console.log("Table 'workouts' ready.");
-    }
-});
+
 
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -76,17 +46,15 @@ app.post('/upload', upload.single('tcxfile'), (req, res) => {
     if (!req.file) return res.status(400).send('No file uploaded');
 
     const jobId = uuidv4();
-    const filePath = req.file.path;
+    const userId = 1;
+    const onUpload = req.body.onUpload;
     const originalName = req.file.originalname;
-
-    console.log('uploaded');
-
     
     db.run(`
-        INSERT INTO workouts (job_id, file_name, status)
-        VALUES (?, ?, 'pending')
-    `, [jobId, originalName], (err) => {
-        if (err) return res.status(500).send('DB error');
+        INSERT INTO workouts (job_id, file_name, user_id, on_upload, status)
+        VALUES (?, ?, ?, ?, 'pending')
+    `, [jobId, originalName, userId, onUpload], (err) => {
+        if (err) return res.status(500).send('DB error' + err);
 
         console.log("adding to redis" + jobId)
         tssQueue.add({ jobId }); // Only ID, not full file data

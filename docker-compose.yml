@@ -17,7 +17,7 @@ services:
       - ./uploads:/app/uploads
     working_dir: /app
     ports:
-      - "3000:3000"
+      - "3216:3000"
     depends_on:
       - redis
 
