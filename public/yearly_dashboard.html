@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Yearly TSS Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="./css/style.css">
+    <style>
+        #yearlyCharts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5em;
+            margin-top: 1em;
+        }
+
+        .year-card {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 0.5em;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+
+        .year-card h4 {
+            font-size: 1rem;
+            margin-bottom: 0.3em;
+        }
+
+        .year-card canvas {
+            width: 100%;
+            height: 180px !important;
+        }
+
+        #yearlyBarChart {
+            width: 100%;
+            max-width: 800px;
+            height: 300px !important;
+            margin: 2em auto 0 auto;
+        }
+        </style>
+</head>
+<body>
+
+<main>
+    <h2>Yearly TSS Dashboard</h2>
+
+    <section id="yearlyCharts"></section>
+
+    <section>
+    <h3>Total TSS per Year</h3>
+    <canvas id="yearlyBarChart"></canvas>
+</section>
+</main>
+
+<script>
+let workouts = [];
+let charts = {};
+const token = localStorage.getItem('token');
+
+document.addEventListener('DOMContentLoaded', () => {
+    fetch('/api/workouts', {headers: { 'Authorization': 'Bearer ' + token }})
+        .then(res => res.json())
+        .then(data => {
+            workouts = data;
+            renderYearlyCharts();
+            renderYearlyOverview();
+        })
+        .catch(err => console.error(err));
+});
+
+function renderYearlyCharts() {
+    const years = [...new Set(workouts.map(w=>new Date(w.workout_date).getFullYear()))].sort((a,b)=>a-b);
+    const container = document.getElementById('yearlyCharts');
+    container.innerHTML='';
+
+    years.forEach(year => {
+        const yearWorkouts = workouts.filter(w => new Date(w.workout_date).getFullYear() === year);
+        const tssByDiscipline = {};
+        const zoneTotals = {1:0,2:0,3:0,4:0,5:0};
+
+        yearWorkouts.forEach(w=>{
+            tssByDiscipline[w.sport] = (tssByDiscipline[w.sport] || 0) + (w.tss || 0);
+            if (w.zone_json) {
+                const zonesData = JSON.parse(w.zone_json); // parse JSON string
+
+                // Helper function: get zones with fallback
+                function getZones(primaryKey, fallbackKey) {
+                    if (zonesData[primaryKey]?.zones?.length) {
+                        return zonesData[primaryKey].zones;
+                    } else if (zonesData[fallbackKey]?.zones?.length) {
+                        return zonesData[fallbackKey].zones;
+                    } else {
+                        return [];
+                    }
+                }
+
+                let selectedZones = [];
+
+                if (w.sport === 'Biking') {
+                    selectedZones = getZones('power', 'hr');
+                } else if (w.sport === 'Running') {
+                    selectedZones = getZones('hr', 'speed');
+                } else {
+                    selectedZones = getZones('speed', 'hr');
+                }
+
+                selectedZones.forEach(z => {
+                    zoneTotals[z.zone] += z.time;
+                });
+            }
+        });
+
+        
+        const yearCard = document.createElement('div');
+        yearCard.className='year-card';
+        yearCard.innerHTML=`<h4>${year}</h4>
+                            <canvas id="tssPie${year}"></canvas>
+                            <canvas id="zonesPie${year}"></canvas>`;
+        container.appendChild(yearCard);
+
+        updateChart(`tssPie${year}`,'pie',Object.keys(tssByDiscipline),Object.values(tssByDiscipline),`TSS ${year}`);
+        updateChart(`zonesPie${year}`,'pie',['Zone1','Zone2','Zone3','Zone4','Zone5'],Object.values(zoneTotals),`Zones ${year}`);
+    
+    });
+}
+
+function renderYearlyOverview(){
+    const tssPerYear = {};
+    workouts.forEach(w=>{
+        const year = new Date(w.workout_date).getFullYear();
+        tssPerYear[year]=(tssPerYear[year]||0)+(w.tss||0);
+    });
+    const years = Object.keys(tssPerYear).sort();
+    const totals = years.map(y=>tssPerYear[y]);
+    updateChart('yearlyBarChart','bar',years,totals,'Total TSS per Year');
+}
+
+function updateChart(canvasId,type,labels,data,labelText,fill=true){
+    if(charts[canvasId]){
+        charts[canvasId].data.labels = labels;
+        charts[canvasId].data.datasets[0].data = data;
+        charts[canvasId].data.datasets[0].label = labelText;
+        charts[canvasId].update();
+    } else {
+        charts[canvasId]=new Chart(document.getElementById(canvasId),{
+            type,
+            data:{labels,datasets:[{label:labelText,data,backgroundColor:['#4a90e2','#ffce00','#e94e77','#50e3c2','#f5a623'],borderColor:'#333',fill}]},
+            options:{responsive:true,plugins:{legend:{position:'bottom'}}}
+        });
+    }
+}
+</script>
+
+<script src="./js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Monthly TSS Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="./css/style.css">
+    <link rel="stylesheet" href="./css/chart.css">
+</head>
+<body>
+
+<main>
+    <h2>Monthly TSS Dashboard</h2>
+
+    <section>
+        <label for="yearSelect">Select Year:</label>
+        <select id="yearSelect"></select>
+    </section>
+
+    <section id="monthlyCharts"></section>
+
+    <section id="yearlyBarLine">
+        <canvas id="weeklyTssLine"></canvas>
+    </section>
+
+</main>
+
+<script>
+let workouts = [];
+let charts = {};
+const token = localStorage.getItem('token');
+
+document.addEventListener('DOMContentLoaded', () => {
+    fetch('/api/workouts', {headers: { 'Authorization': 'Bearer ' + token }})
+        .then(res => res.json())
+        .then(data => {
+            workouts = data;
+            populateYearSelector();
+            renderMonthlyCharts(getSelectedYear());
+        })
+        .catch(err => console.error(err));
+
+    document.getElementById('yearSelect').addEventListener('change', () => {
+        renderMonthlyCharts(getSelectedYear());
+    });
+});
+
+function populateYearSelector() {
+    const years = [...new Set(workouts.map(w => new Date(w.workout_date).getFullYear()))].sort((a,b)=>b-a);
+    const select = document.getElementById('yearSelect');
+    years.forEach(y => {
+        const option = document.createElement('option');
+        option.value = y;
+        option.textContent = y;
+        select.appendChild(option);
+    });
+    select.value = new Date().getFullYear();
+}
+
+function getSelectedYear() {
+    return parseInt(document.getElementById('yearSelect').value);
+}
+
+function renderMonthlyCharts(year) {
+    const monthlyChartsContainer = document.getElementById('monthlyCharts');
+    monthlyChartsContainer.innerHTML = ''; // clear previous charts
+    const yearWorkouts = workouts.filter(w => new Date(w.workout_date).getFullYear() === year);
+
+    // Weekly TSS
+    const weeklyTss = {};
+
+    for (let month = 1; month <= 12; month++) {
+        const monthWorkouts = yearWorkouts.filter(w => (new Date(w.workout_date).getMonth()+1) === month);
+
+        const tssByDiscipline = {};
+        const zoneTotals = {1:0,2:0,3:0,4:0,5:0};
+
+        monthWorkouts.forEach(w => {
+            tssByDiscipline[w.sport] = (tssByDiscipline[w.sport] || 0) + (w.tss || 0);
+            if (w.zone_json) {
+                const zonesData = JSON.parse(w.zone_json); // parse JSON string
+
+                // Helper function: get zones with fallback
+                function getZones(primaryKey, fallbackKey) {
+                    if (zonesData[primaryKey]?.zones?.length) {
+                        return zonesData[primaryKey].zones;
+                    } else if (zonesData[fallbackKey]?.zones?.length) {
+                        return zonesData[fallbackKey].zones;
+                    } else {
+                        return [];
+                    }
+                }
+
+                let selectedZones = [];
+
+                if (w.sport === 'Biking') {
+                    selectedZones = getZones('power', 'hr');
+                } else if (w.sport === 'Running') {
+                    selectedZones = getZones('hr', 'speed');
+                } else {
+                    selectedZones = getZones('speed', 'hr');
+                }
+
+                selectedZones.forEach(z => {
+                    zoneTotals[z.zone] += z.time;
+                });
+            }
+
+            // weekly TSS
+            const week = getWeekNumber(new Date(w.workout_date));
+            const weekKey = `W${week}`;
+            weeklyTss[weekKey] = (weeklyTss[weekKey] || 0) + (w.tss || 0);
+        });
+
+        // Create month section
+        const monthCard = document.createElement('div');
+        monthCard.className = 'month-card';
+        monthCard.innerHTML = `<h4>${new Date(year, month-1).toLocaleString('default',{month:'short'})}</h4>
+                               <canvas id="tssPie${month}"></canvas>
+                               <canvas id="zonesPie${month}"></canvas>`;
+        monthlyChartsContainer.appendChild(monthCard);
+
+        updateChart(`tssPie${month}`, 'pie', Object.keys(tssByDiscipline), Object.values(tssByDiscipline), `TSS ${year}-${month}`);
+        updateChart(`zonesPie${month}`, 'pie', ['Zone1','Zone2','Zone3','Zone4','Zone5'], Object.values(zoneTotals), `Zones ${month}`);
+    }
+
+    // Weekly line chart
+    const weeksSorted = Object.keys(weeklyTss).sort((a,b)=>parseInt(a.substring(1))-parseInt(b.substring(1)));
+    updateChart('weeklyTssLine','line',weeksSorted,weeksSorted.map(w=>weeklyTss[w]),'Weekly TSS',false);
+}
+
+// Chart helper
+function updateChart(canvasId,type,labels,data,labelText,fill=true) {
+        charts[canvasId] = new Chart(document.getElementById(canvasId), {
+            type,
+            data: {
+                labels,
+                datasets:[{
+                    label: labelText,
+                    data,
+                    backgroundColor: ['#4a90e2','#ffce00','#e94e77','#50e3c2','#f5a623'],
+                    borderColor: '#333',
+                    fill
+                }]
+            },
+            options:{responsive:true,plugins:{legend:{position:'bottom'}}}
+        });
+}
+
+function getWeekNumber(d){
+    const date = new Date(d.getTime());
+    date.setHours(0,0,0,0);
+    date.setDate(date.getDate() + 4 - (date.getDay()||7));
+    const yearStart = new Date(date.getFullYear(),0,1);
+    return Math.ceil((((date - yearStart)/86400000)+1)/7);
+}
+</script>
+
+<script src="./js/main.js"></script>
+</body>
+</html>

@@ -1,9 +1,11 @@
 function renderHeaderFooter() {
     const header = `
         <header>
-            <h1>TSS Tracker</h1>
+            <a href="index.html" class="logo">
+                <img src="./assets/logo.png" alt="TSS Tracker Logo" />
+            </a>
             <nav>
-                <a href="index.html">Home</a>
+                <a href="home.html">Home</a>
                 <a href="upload.html">Upload</a>
                 <a href="calendar.html">Calendar</a>
             </nav>

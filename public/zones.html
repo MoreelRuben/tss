@@ -7,6 +7,8 @@
     <style>
         body { font-family: Arial, sans-serif; background:#f4f4f4; margin:0; padding:0; }
         main { max-width:600px; margin:3rem auto; padding:2rem; background:white; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+        header nav a { color:white; margin:0 1rem; text-decoration:none; font-weight:bold; }
+        header, footer { background:#1e40af; color:white; padding:1rem; text-align:center; }
         h2 { color:#1e40af; text-align:center; }
         form { display:flex; flex-direction:column; margin-bottom:1.5rem; }
         input { margin:0.5rem 0; padding:0.5rem; border:1px solid #ccc; border-radius:4px; }
@@ -18,11 +20,11 @@
 </head>
 <body>
 <main>
-    <h2>Upload TCX File</h2>
+    <h2>Calculate Zones</h2>
 
-    <form id="uploadForm">
-        <input type="file" name="tcxfile" accept=".tcx" required>
-        <button type="submit">Upload Zones File</button>
+    <form id="rollingUploadForm">
+        <input type="file" name="rollingfile" accept=".tcx" required>
+        <button type="submit">Upload Rolling File</button>
     </form>
 
     <div id="result"></div>
@@ -35,7 +37,7 @@ if (!token) {
     window.location.href = '/login.html';
 }
 
-const form = document.getElementById('uploadForm');
+const form2 = document.getElementById('rollingUploadForm');
 const resultDiv = document.getElementById('result');
 
 async function uploadFile(file, onUpload) {
@@ -63,12 +65,11 @@ async function uploadFile(file, onUpload) {
     }
 }
 
-form.addEventListener('submit', e => {
+form2.addEventListener('submit', e => {
     e.preventDefault();
-    const fileInput = form.querySelector('input[name="tcxfile"]');
-    uploadFile(fileInput.files[0], 'zones');
+    const fileInput = form2.querySelector('input[name="rollingfile"]');
+    uploadFile(fileInput.files[0], 'rolling');
 });
-
 </script>
 </body>
 </html>

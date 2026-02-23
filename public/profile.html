@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>TSS Tracker - Account</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Quick clean design */
+        body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f4f4f4; }
+        main { max-width:900px; margin:2rem auto; padding:2rem; background:white; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1);}
+        h2 { color:#1e40af; }
+        .user-info, .workouts, .zones { margin-top:1.5rem; }
+        .workouts ul, .zones ul { list-style:none; padding:0; }
+        .workouts li, .zones li { padding:0.5rem; border-bottom:1px solid #ddd; }
+        .workouts li:last-child, .zones li:last-child { border-bottom:none; }
+        .section-title { color:#334155; font-size:1.2rem; margin-bottom:0.5rem; }
+    </style>   
+    <script src="./js/main.js"></script>
+</head>
+<body>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login.html';
+        return;
+    }
+
+    // Create main sections
+    const main = document.createElement('main');
+    main.innerHTML = `
+        <h2><span id="username">Loading...</span></h2>
+        <div class="user-info"></div>
+        <div id="overview" style="display: flex; flex-wrap: wrap; gap: 20px;"></div>
+        <div class="workouts">
+            <div class="section-title">Your Workouts</div>
+            <ul id="workoutsList"></ul>
+        </div>
+    `;
+    document.body.insertBefore(main, document.querySelector('footer'));
+
+    // Fetch user + zones
+    fetch('/api/user', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById('username').innerText = data.user.username;
+
+        const overview = document.getElementById('overview');
+        overview.innerHTML = '';
+
+        if (data.zones.length === 0) {
+            overview.innerHTML = '<p>No zones defined</p>';
+            return;
+        }
+
+        // Group zones by sport and metric
+        const grouped = {};
+        data.zones.forEach(z => {
+            const key = `${z.sport} - ${z.metric}`;
+            if (!grouped[key]) grouped[key] = [];
+            grouped[key].push(z);
+        });
+
+        // Group by sport for side-by-side display
+        const sports = {};
+        for (const combo in grouped) {
+            const [sport, metric] = combo.split(' - ');
+            if (!sports[sport]) sports[sport] = {};
+            sports[sport][metric] = grouped[combo];
+        }
+
+        // Iterate over each sport
+        for (const sport in sports) {
+            const sportContainer = document.createElement('div');
+            sportContainer.style.flex = '1';
+            sportContainer.style.minWidth = '250px';
+            sportContainer.style.border = '1px solid #ccc';
+            sportContainer.style.borderRadius = '8px';
+            sportContainer.style.padding = '10px';
+            sportContainer.style.backgroundColor = '#fafafa';
+            sportContainer.style.boxShadow = '0 2px 5px rgba(0,0,0,0.1)';
+
+            const sportTitle = document.createElement('h2');
+            sportTitle.innerText = sport;
+            sportTitle.style.textAlign = 'center';
+            sportContainer.appendChild(sportTitle);
+
+            // Tables for each metric
+            for (const metric in sports[sport]) {
+                const zones = sports[sport][metric];
+
+                const metricTitle = document.createElement('h3');
+                metricTitle.innerText = metric;
+                metricTitle.style.textAlign = 'center';
+                metricTitle.style.marginBottom = '5px';
+                sportContainer.appendChild(metricTitle);
+
+                const table = document.createElement('table');
+                table.style.width = '100%';
+                table.style.borderCollapse = 'collapse';
+                table.style.marginBottom = '15px';
+
+                // Header
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+                ['Zone', 'Min', 'Max'].forEach(text => {
+                    const th = document.createElement('th');
+                    th.innerText = text;
+                    th.style.backgroundColor = '#007BFF';
+                    th.style.color = '#fff';
+                    th.style.padding = '5px';
+                    th.style.border = '1px solid #ccc';
+                    th.style.fontWeight = 'bold';
+                    headerRow.appendChild(th);
+                });
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+
+                // Body
+                const tbody = document.createElement('tbody');
+                zones.forEach((z, idx) => {
+                    const row = document.createElement('tr');
+
+                    // Color-code zones for clarity
+                    const colors = ['#FFCDD2','#F8BBD0','#E1BEE7','#BBDEFB','#C8E6C9'];
+                    
+                    const isSpeedMetric = metric.toLowerCase() === 'speed';
+
+                        [
+                            z.zone,
+                            isSpeedMetric ? formatSecondsToMinSec(z.min) : z.min,
+                            isSpeedMetric ? formatSecondsToMinSec(z.max) : z.max
+                        ].forEach(val => {
+                        const td = document.createElement('td');
+                        td.innerText = val;
+                        td.style.textAlign = 'center';
+                        td.style.border = '1px solid #ccc';
+                        td.style.backgroundColor = colors[idx % colors.length];
+                        row.appendChild(td);
+                    });
+                    tbody.appendChild(row);
+                });
+                table.appendChild(tbody);
+                sportContainer.appendChild(table);
+            }
+
+            overview.appendChild(sportContainer);
+        }
+    });
+
+    function formatSecondsToMinSec(seconds) {
+        if (seconds === null || seconds === undefined) return '-';
+
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.round(seconds % 60);
+
+        if(seconds == 50000){
+            return '+'
+        }
+
+        if(seconds == 100 || seconds == 25){
+            return '-'
+        }
+
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    // Fetch workouts
+    fetch('/api/workouts', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    })
+    .then(res => res.json())
+    .then(workouts => {
+        const workoutsList = document.getElementById('workoutsList');
+        workoutsList.innerHTML = '';
+        if (workouts.length === 0) {
+            workoutsList.innerHTML = '<li>No workouts uploaded yet</li>';
+        } else {
+            workouts.forEach(w => {
+                const li = document.createElement('li');
+                li.textContent = `${w.file_name} - Status: ${w.status} - Date: ${w.workout_date}`;
+                workoutsList.appendChild(li);
+            });
+        }
+    });
+});
+</script>
+</body>
+</html>

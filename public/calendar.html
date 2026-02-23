@@ -2,39 +2,24 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>TSS Tracker</title>
+    <title>Workout Calendar</title>
+    <link rel="stylesheet" href="css/calendar.css">
     <link rel="stylesheet" href="css/style.css">
-    <script src="js/index.global.js"></script>
+    <script src="js/main.js"></script>
 </head>
 <body>
-<main>
-    <h2>Workout Calendar</h2>
-    <div id="calendar"></div>
+<main class="container">
+    <h1>Workout Calendar</h1>
+
+    <div class="calendar-controls">
+        <button id="prevMonth">&lt;</button>
+        <h2 id="monthYear"></h2>
+        <button id="nextMonth">&gt;</button>
+    </div>
+
+    <div id="calendar" class="calendar-grid"></div>
 </main>
-<script src="js/main.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const calendarEl = document.getElementById('calendar');
 
-    fetch('/api/workouts')
-        .then(res => res.json())
-        .then(data => {
-            const events = data.map(w => ({
-                title: `TSS: ${w.tss} (${w.status})`,
-                start: w.workout_date,
-                url: `detail.html?id=${w.id}`
-            }));
-
-            const calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridMonth',
-                events: events,
-                eventColor: '#1E90FF'
-            });
-
-            calendar.render();
-        });
-});
-</script>
-
+<script src="js/calendar.js"></script>
 </body>
 </html>

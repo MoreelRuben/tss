@@ -11,7 +11,8 @@ db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT UNIQUE NOT NULL,
+      username TEXT UNIQUE NOT NULL,
+      email TEXT UNIQUE,
       password_hash TEXT NOT NULL,
       max_hr INTEGER,
       ftp INTEGER,
@@ -29,7 +30,7 @@ db.serialize(() => {
       sport TEXT,
       on_upload TEXT,
       status TEXT DEFAULT 'pending',
-      workout_date TEXT,
+      workout_date DATETIME,
       duration_seconds REAL,
       distance REAL,
       avg_hr REAL,
@@ -43,26 +44,22 @@ db.serialize(() => {
     )
   `);
 
-  // ZONE TABLES
-  const zoneTables = ['hr_zones', 'power_zones', 'speed_zones'];
-
-  zoneTables.forEach(table => {
     db.run(`
-      CREATE TABLE IF NOT EXISTS ${table} (
+      CREATE TABLE IF NOT EXISTS zones (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
         sport TEXT,
+        metric TEXT,
         zone INTEGER,
         min REAL,
         max REAL,
         FOREIGN KEY(user_id) REFERENCES users(id)
       )
     `);
-  });
 
   // Insert default user if not exists
   db.get(
-    `SELECT * FROM users WHERE email = ?`,
+    `SELECT * FROM users WHERE username = ?`,
     ['ruben.moreel'],
     (err, row) => {
       if (err) {
@@ -73,7 +70,7 @@ db.serialize(() => {
       if (!row) {
         db.run(
           `
-          INSERT INTO users (email, password_hash, max_hr, ftp)
+          INSERT INTO users (username, password_hash, max_hr, ftp)
           VALUES (?, ?, ?, ?)
           `,
           [
@@ -90,8 +87,6 @@ db.serialize(() => {
 
             const userId = this.lastID;
             console.log("Default user created with ID:", userId);
-
-            createDefaultZones(userId);
           }
         );
       } else {
@@ -101,32 +96,6 @@ db.serialize(() => {
   );
 });
 
-function createDefaultZones(userId) {
-
-  const sports = ['cycling', 'running', 'swimming'];
-
-  const defaultHRZones = [
-    { zone: 1, min: 0, max: 114 },
-    { zone: 2, min: 114, max: 133 },
-    { zone: 3, min: 133, max: 152 },
-    { zone: 4, min: 152, max: 171 },
-    { zone: 5, min: 171, max: 999 }
-  ];
-
-  sports.forEach(sport => {
-    defaultHRZones.forEach(z => {
-      db.run(
-        `
-        INSERT INTO hr_zones (user_id, sport, zone, min, max)
-        VALUES (?, ?, ?, ?, ?)
-        `,
-        [userId, sport, z.zone, z.min, z.max]
-      );
-    });
-  });
-
-  console.log("Default HR zones created.");
-}
 
 console.log("Database initialized.");
 

@@ -1,0 +1,109 @@
+/* -----------------------------------
+   Calendar Grid & Style
+----------------------------------- */
+.calendar-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1em;
+    margin-bottom: 1em;
+}
+
+.calendar-controls h2 {
+    font-size: 1.5rem;
+    color: #1a202c;
+}
+
+.calendar-controls button {
+    background: #4a90e2;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0.5em 1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.calendar-controls button:hover {
+    background: #357ab8;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.5em;
+}
+
+.calendar-day {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    padding: 0.5em;
+    transition: transform 0.2s, background 0.2s;
+    position: relative;
+}
+
+.calendar-day:hover {
+    background: #f0f4f8;
+}
+
+.calendar-day-number {
+    font-weight: 600;
+    color: #4a5568;
+    margin-bottom: 0.25em;
+}
+
+.event {
+    background: #edf2f7;
+    border-left: 4px solid #4a90e2;
+    padding: 0.2em 0.4em;
+    margin: 0.2em 0;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border-radius: 4px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.2s;
+    max-width: 100px;
+}
+
+.event:hover {
+    background: greenyellow;
+    color: white;
+    transform: scale(1.05);
+    z-index: 2;
+}
+
+/* Weekday Headers */
+.weekday-header {
+    text-align: center;
+    font-weight: 600;
+    color: #4a5568;
+    padding: 0.5em 0;
+    background: #f7fafc;
+    border-radius: 6px;
+}
+
+/* Responsive */
+@media(max-width: 768px) {
+    .calendar-grid {
+        grid-template-columns: repeat(7, 1fr);
+        gap: 0.25em;
+    }
+    .calendar-day {
+        min-height: 80px;
+        padding: 0.25em;
+    }
+    .event {
+        font-size: 0.7rem;
+        padding: 0.15em 0.3em;
+    }
+}

@@ -2,54 +2,167 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>TSS Tracker</title>
+    <title>Workout Overview</title>
+    <link rel="stylesheet" href="css/detail.css">
     <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-<main>
-    <h2>Workout Details</h2>
-    <div id="details"></div>
+<main class="container">
+    <h1>Workout Overview</h1>
+
+    <section class="workout-summary">
+        <h2>Workout Details</h2>
+        <div id="details" class="details"></div>
+    </section>
+
+    <section class="charts">
+        <h2>Heart Rate Zones</h2>
+        <canvas id="hrChart"></canvas>
+        <h2>Speed Zones</h2>
+        <canvas id="speedChart"></canvas>
+    </section>
 </main>
+
 <script src="js/main.js"></script>
 <script>
+    const token = localStorage.getItem('token');
 const params = new URLSearchParams(window.location.search);
 const id = params.get('id');
 
-fetch(`/api/workouts/${id}`)
-    .then(res => res.json())
-    .then(data => {
-        let pace = 
+function paceFromSpeed(speed, sport) {
+    if (!speed || speed <= 0) return "N/A";
 
-        document.getElementById('details').innerHTML = `
-            <p><strong>Date:</strong> ${data.workout_date}</p>
-            <p><strong>File:</strong> ${data.file_name}</p>
-            <p><strong>TSS:</strong> ${data.tss}</p>
-            <p><strong>Duration:</strong> ${secondsToHMS(data.duration_seconds)}</p>
-            <p><strong>Avg HR:</strong> ${Math.round(data.avg_hr)}</p>
-            <p><strong>Pace:</strong> ${secondsToKmPace(data.pace)}</p>
-            <p><strong>Distance:</strong> ${Math.round(data.distance / 10) /100} km</p>
-        `;
-    });
+    if (sport === 'Biking') {
+        // m/s → km/h
+        const kmh = speed * 3.6;
+        return `${kmh.toFixed(1)} km/h`;
+    }
 
-function secondsToKmPace(seconds) {
-    // Convert total seconds to minutes
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.round(seconds % 60);
+    if (sport === 'Running') {
+        // m/s → seconds per km
+        const secondsPerKm = 1000 / speed;
+        const minutes = Math.floor(secondsPerKm / 60);
+        const seconds = Math.round(secondsPerKm % 60);
+        return `${minutes}:${seconds.toString().padStart(2, '0')} min/km`;
+    }
 
-    // Format seconds to always have 2 digits
-    const formattedSeconds = remainingSeconds.toString().padStart(2, '0');
-
-    return `${minutes}:${formattedSeconds} min/km`;
+    // Other → min/100m
+    const secondsPer100m = 100 / speed;
+    const minutes = Math.floor(secondsPer100m / 60);
+    const seconds = Math.round(secondsPer100m % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')} min/100m`;
 }
 
 function secondsToHMS(seconds) {
-    const hours = Math.floor(seconds / 3600); // 1 hour = 3600 sec
+    if (!seconds) return "N/A";
+    const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    const remainingSeconds = ((seconds % 3600) % 60).toFixed(2); // keep 2 decimals
-
-    return `${hours}:${minutes.toString().padStart(2,'0')}:${remainingSeconds.toString().padStart(5,'0')}`;
+    const remainingSeconds = Math.round(seconds % 60);
+    return `${hours}:${minutes.toString().padStart(2,'0')}:${remainingSeconds.toString().padStart(2,'0')}`;
 }
-</script>
 
+fetch(`/api/workouts/${id}`, {headers: { 'Authorization': 'Bearer ' + token }})
+    .then(res => res.json())
+    .then(data => {
+        const detailsDiv = document.getElementById('details');
+        detailsDiv.innerHTML = `
+            <p><strong>Date:</strong> ${new Date(data.workout_date).toLocaleString()}</p>
+            <p><strong>File:</strong> ${data.file_name}</p>
+            <p><strong>Sport:</strong> ${data.sport}</p>
+            <p><strong>TSS:</strong> ${Math.round(data.tss) ?? "N/A"}</p>
+            <p><strong>Duration:</strong> ${secondsToHMS(data.duration_seconds)}</p>
+            <p><strong>Average HR:</strong> ${data.avg_hr ?? "N/A"} bpm</p>
+            <p><strong>Pace:</strong> ${paceFromSpeed(data.avg_speed, data.sport)}</p>
+            <p><strong>Distance:</strong> ${data.distance ? (Math.round(data.distance / 10) /100) + " km" : "N/A"}</p>
+        `;
+
+        // Pie Chart for HR zones
+        if (data.zone_json) {
+            const zoneData = JSON.parse(data.zone_json);
+            console.log(zoneData)
+            
+            const hrZones = zoneData.hr.zones;
+
+            if(hrZones.length > 0){
+            const hrLabels = hrZones.map(z => `Zone ${z.zone} (${z.min}-${z.max} bpm)`);
+            const hrPercent = hrZones.map(z => Math.round(z.percent));
+
+            const ctx = document.getElementById('hrChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: hrLabels,
+                    datasets: [{
+                        data: hrPercent,
+                        backgroundColor: [
+                            '#4caf50',
+                            '#2196f3',
+                            '#ff9800',
+                            '#f44336',
+                            '#9c27b0'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'right'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.label}: ${context.raw}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+            const speedZones = zoneData.speed.zones;
+
+            if(speedZones.length > 0){
+            const speedLabels = speedZones.map(z => `Zone ${z.zone} (${Math.round(z.min)}-${Math.round(z.max)}) m/s`);
+            const speedPercent = speedZones.map(z => Math.round(z.percent));
+
+            const ctx2 = document.getElementById('speedChart').getContext('2d');
+            new Chart(ctx2, {
+                type: 'pie',
+                data: {
+                    labels: speedLabels,
+                    datasets: [{
+                        data: speedPercent,
+                        backgroundColor: [
+                            '#4caf50',
+                            '#2196f3',
+                            '#ff9800',
+                            '#f44336',
+                            '#9c27b0'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'right'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.label}: ${context.raw}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        }
+    });
+</script>
 </body>
 </html>
