@@ -37,6 +37,7 @@ db.serialize(() => {
       avg_speed REAL,
       avg_power REAL,
       tss REAL,
+      metric_used TEXT,
       zone_json TEXT,
       rolling_json TEXT,
       processed_at DATETIME,

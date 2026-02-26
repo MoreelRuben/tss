@@ -60,7 +60,8 @@ function updateWorkout(jobId, result) {
       avgPower,
       tss,
       rolling,
-      zones
+      zones,
+      metricUsed
     } = result;
 
     db.run(
@@ -75,6 +76,7 @@ function updateWorkout(jobId, result) {
         tss = ?,
         rolling_json = ?,
         zone_json = ?,
+        metric_used = ?,
         processed_at = CURRENT_TIMESTAMP
       WHERE job_id = ?
       `,
@@ -87,6 +89,7 @@ function updateWorkout(jobId, result) {
         tss || null,
         rolling ? JSON.stringify(rolling) : null,
         zones ? JSON.stringify(zones) : null,
+        metricUsed || null,
         jobId
       ],
       function (err) {
@@ -165,7 +168,9 @@ tssQueue.process(async (job) => {
         result.distance = metadata.total_distance_m
         result.durationSeconds = metadata.total_time_sec
         result.avgSpeed = metadata.avg_speed_m_per_sec
-        result.tss = calculateTSS(result.zones, sport)
+        tssData = calculateTSS(result.zones, sport)
+        result.tss = tssData.tss
+        result.metricUsed = tssData.metricUsed
     }
 
     
@@ -288,8 +293,8 @@ function parseTCX(xml) {
                 const time = new Date(tp.Time).getTime();
                 const hr = tp.HeartRateBpm ? Number(tp.HeartRateBpm.Value) : null;
                 const distance = tp.DistanceMeters ? Number(tp.DistanceMeters) : null;
-                const power = tp.Extensions?.TPX?.Watts
-                    ? Number(tp.Extensions.TPX.Watts)
+                const power = tp.Extensions?.['ns3:TPX']?.['ns3:Watts']
+                    ? Number(tp.Extensions['ns3:TPX']['ns3:Watts'])
                     : null;
 
                 let speed = null;
@@ -454,71 +459,153 @@ function storeZones(rolling, userId, sport) {
 }
 
 function calculateTSS(json, sport) {
-    console.log("start calcualtion")
-    let zones;
-    if(sport === "Biking"){
-        zones = json.power.zones
+  console.log("start calculation");
+
+  let zones = null;
+  let IFmap = null;
+  let usedMetric = null;
+
+  // ---- CYCLING ----
+  if (sport === "Biking") {
+    if (json.power?.zones?.length) {
+      zones = json.power.zones;
+      usedMetric = "power";
+      IFmap = {
+        1: 0.50, 2: 0.65, 3: 0.83,
+        4: 0.98, 5: 1.13, 6: 1.30, 7: 1.60
+      };
+    } 
+    else if (json.hr?.zones?.length) {
+      zones = json.hr.zones;
+      usedMetric = "hr";
+      IFmap = {
+        1: 0.60, 2: 0.70, 3: 0.80,
+        4: 0.90, 5: 1.00, 6: 1.05, 7: 1.10
+      };
+    } 
+    else if (json.speed?.zones?.length) {
+      zones = json.speed.zones;
+      usedMetric = "speed";
+      IFmap = {
+        1: 0.65, 2: 0.75, 3: 0.85,
+        4: 0.95, 5: 1.05, 6: 1.15, 7: 1.25
+      };
     }
-    if(sport === "Running"){
-        zones = json.hr.zones
+  }
+
+  // ---- RUNNING ----
+  else if (sport === "Running") {
+    if (json.hr?.zones?.length) {
+      zones = json.hr.zones;
+      usedMetric = "hr";
+      IFmap = {
+        1: 0.60, 2: 0.70, 3: 0.80,
+        4: 0.90, 5: 1.00, 6: 1.05, 7: 1.10
+      };
+    } 
+    else if (json.speed?.zones?.length) {
+      zones = json.speed.zones;
+      usedMetric = "speed";
+      IFmap = {
+        1: 0.65, 2: 0.75, 3: 0.85,
+        4: 0.95, 5: 1.05, 6: 1.15, 7: 1.25
+      };
     }
-    if(sport === "Other"){
-        zones = json.speed.zones
+  }
+
+  // ---- SWIMMING / OTHER ----
+  else if (sport === "Other") {
+    if (json.speed?.zones?.length) {
+      zones = json.speed.zones;
+      usedMetric = "speed";
+      IFmap = {
+        1: 0.65, 2: 0.75, 3: 0.85,
+        4: 0.95, 5: 1.05, 6: 1.15, 7: 1.25
+      };
+    } 
+    else if (json.hr?.zones?.length) {
+      zones = json.hr.zones;
+      usedMetric = "hr";
+      IFmap = {
+        1: 0.60, 2: 0.70, 3: 0.80,
+        4: 0.90, 5: 1.00, 6: 1.05, 7: 1.10
+      };
     }
-  const IF = {
-    1: 0.50,
-    2: 0.65,
-    3: 0.83,
-    4: 1.00,
-    5: 1.13
-  };
+  }
+
+  if (!zones || !zones.length) {
+    console.warn("No valid zones found");
+    return { tss: 0, metricUsed: null };
+  }
 
   let totalTSS = 0;
 
   zones.forEach(segment => {
-    const timeHr = segment.time / 3600000;      // seconden → uren
-    const ifValue = IF[segment.zone] || 1;   // fallback als zone onbekend
-    const tss = timeHr * Math.pow(ifValue, 2) * 100;
-    totalTSS += tss;
+    const hours = segment.time / 3600000; // jij zei nu seconden
+    const ifValue = IFmap[segment.zone] ?? 0;
+    totalTSS += hours * Math.pow(ifValue, 2) * 100;
   });
 
-  return totalTSS;
+  return {
+    tss: Math.round(totalTSS),
+    metricUsed: usedMetric
+  };
 }
 
 
 function calculateZones(maxValue, sport, metric){
     if(sport === 'Running' && metric === 'hr'){
         return [
-            { zone: 1, min: 0, max: Math.round(maxValue * 0.6) },
-            { zone: 2, min: Math.round((maxValue * 0.6) + 1), max: Math.round(maxValue * 0.7) },
-            { zone: 3, min: Math.round((maxValue * 0.7) + 1), max: Math.round(maxValue * 0.8 )},
-            { zone: 4, min: Math.round((maxValue * 0.8) + 1), max: Math.round((maxValue * 0.91) - 1) },
-            { zone: 5, min: Math.round(maxValue * 0.91), max: 250 }
+            { zone: 1, min: 0, max: Math.round(maxValue * 0.7) },
+            { zone: 2, min: Math.round((maxValue * 0.7) + 1), max: Math.round(maxValue * 0.8) },
+            { zone: 3, min: Math.round((maxValue * 0.8) + 1), max: Math.round(maxValue * 0.9 )},
+            { zone: 4, min: Math.round((maxValue * 0.9) + 1), max: Math.round((maxValue)) },
+            { zone: 5, min: Math.round(maxValue) + 1, max: Math.round(maxValue * 1.05)},
+            { zone: 6, min: Math.round(maxValue * 1.05) + 1, max: Math.round(maxValue * 1.15)},
+            { zone: 7, min: Math.round(maxValue * 1.15) + 1, max: 250 },
         ];
     }else if(sport === 'Running' && metric === 'speed'){
+        let v = 1000 /maxValue
         return [
-            { zone: 1, min: 50000, max: (1000 / maxValue) + (1000 / maxValue) * 0.255 },
-            { zone: 2, min: (1000 / maxValue) + (1000 / maxValue) * 0.252, max: (1000 / maxValue) + (1000 / maxValue) * 0.117 },
-            { zone: 3, min: (1000 / maxValue) + (1000 / maxValue) * 0.114, max: (1000 / maxValue) + (1000 / maxValue) * 0.057 },
-            { zone: 4, min: (1000 / maxValue) + (1000 / maxValue) * 0.056, max: (1000 / maxValue) + (1000 / maxValue) * 0.003},
-            { zone: 5, min: 1000 / maxValue, max: 100 }
+            { zone: 1, min: 50000, max: (v * 1.252) + 1 },
+            { zone: 2, min: v  * 1.252, max: (v * 1.114) + 1 },
+            { zone: 3, min: v * 1.114, max: (v * 1.056) +1 },
+            { zone: 4, min: v * 1.056, max: v  + 1},
+            { zone: 5, min: v, max: (v * 0.87) + 1 },
+            {zone: 6, min: v * 0.87, max: (v * 0.75) + 1},
+            {zone: 7, min: v * 0.75, max: 100}
         ];
     }else if(sport === 'Biking' && metric === 'hr'){
-      return [
-            { zone: 1, min: 0, max: Math.round(maxValue * 0.74) },
-            { zone: 2, min: Math.round((maxValue * 0.74) + 1), max: Math.round(maxValue * 0.84) },
-            { zone: 3, min: Math.round((maxValue * 0.84) + 1), max: Math.round(maxValue * 0.94)},
-            { zone: 4, min: Math.round((maxValue * 0.94) + 1), max: Math.round((maxValue) - 1) },
-            { zone: 5, min: Math.round(maxValue), max: 250 }
+        return [
+            { zone: 1, min: 0, max: Math.round(maxValue * 0.68) },
+            { zone: 2, min: Math.round(maxValue * 0.68) + 1, max: Math.round(maxValue * 0.75) },
+            { zone: 3, min: Math.round(maxValue * 0.75) + 1, max: Math.round(maxValue * 0.82) },
+            { zone: 4, min: Math.round(maxValue * 0.82) + 1, max: Math.round(maxValue * 0.89) },
+            { zone: 5, min: Math.round(maxValue * 0.89) + 1, max: Math.round(maxValue * 0.94) },
+            { zone: 6, min: Math.round(maxValue * 0.94) + 1, max: Math.round(maxValue) },
+            { zone: 7, min: Math.round(maxValue) + 1, max: 250 }
+        ];
+    }else if (sport === 'Biking' && metric === 'power') {
+        return [
+            { zone: 1, min: 0, max: Math.round(maxValue * 0.55) },                 // Active Recovery
+            { zone: 2, min: Math.round(maxValue * 0.55) + 1, max: Math.round(maxValue * 0.75) }, // Endurance
+            { zone: 3, min: Math.round(maxValue * 0.75) + 1, max: Math.round(maxValue * 0.90) }, // Tempo
+            { zone: 4, min: Math.round(maxValue * 0.90) + 1, max: Math.round(maxValue * 1.05) }, // Threshold
+            { zone: 5, min: Math.round(maxValue * 1.05) + 1, max: Math.round(maxValue * 1.20) }, // VO2max
+            { zone: 6, min: Math.round(maxValue * 1.20) + 1, max: Math.round(maxValue * 1.50) }, // Anaerobic
+            { zone: 7, min: Math.round(maxValue * 1.50) + 1, max: 2000 } // Neuromuscular sprint cap
         ];
     }
     else if(sport === 'Other' && metric === 'speed'){
+      const css = 100 / maxValue
       return [
-            { zone: 1, min: 50000, max: ((100 / maxValue) * 1.084) + 1 },
-            { zone: 2, min: (100 / maxValue) * 1.084, max: ((100 / maxValue) * 1.054) + 1 },
-            { zone: 3, min: (100 / maxValue) *1.054, max: ((100 / maxValue) * 1.027)  +1 },
-            { zone: 4, min: (100 / maxValue) * 1.027 , max: (100 / maxValue) + 1},
-            { zone: 5, min: 100 / maxValue, max: 25 }
+            { zone: 1, min: 50000, max: ((css) * 1.084) + 1 },
+            { zone: 2, min: (css) * 1.084, max: ((css) * 1.054) + 1 },
+            { zone: 3, min: (css) *1.054, max: (css * 1.027)  +1 },
+            { zone: 4, min: css * 1.027 , max: css + 1},
+            { zone: 5, min: css, max: (css * 0.975) + 1 },
+            { zone: 6, min: css * 0.975, max: (css * 0.92) + 1},
+            {zone: 7, min:(css * 0.92), max: 25}
         ];
     }
     else{

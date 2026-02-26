@@ -184,7 +184,7 @@ footer {
 }
 
 header .logo img {
-    height: 120px; /* adjust logo size */
+    height: 100px; /* adjust logo size */
     width: auto;
     display: block;
 }
