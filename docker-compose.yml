@@ -37,7 +37,7 @@ services:
       - .:/app
       - /app/node_modules
       - ./uploads:/app/uploads
-       - ./uploads:/app/uploads
+      - ./uploads:/app/uploads
       - ./tss.db:/app/tss.db # same uploads folder
     working_dir: /app
     environment:
