@@ -24,7 +24,7 @@ services:
       - "3216:3000"
     environment:
       REDIS_URL: "redis://redis:6379"
-      PORT :"3000"
+      PORT : "3000"
       JWT_SECRET: "croissant"
     depends_on:
       - redis
