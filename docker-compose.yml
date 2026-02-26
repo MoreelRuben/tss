@@ -20,7 +20,7 @@ services:
       - ./data:/app/data
     working_dir: /app
     ports:
-      - "3216:3000"
+      - "3000:3000"
     environment:
       REDIS_URL: "redis://redis:6379"
       PORT : "3000"
