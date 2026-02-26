@@ -12,7 +12,7 @@ const tssQueue = new Queue('tssQueue', process.env.REDIS_URL);
 
 
 
-const db = new sqlite3.Database('./tss.db');
+const db = new sqlite3.Database('./data/tss.db');
 
 function getZones(userId, sport, metric) {
   return new Promise((resolve, reject) => {
