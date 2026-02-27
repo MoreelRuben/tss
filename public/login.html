@@ -14,6 +14,8 @@
         button:hover { background:#374ac0; }
         .toggle { text-align:center; margin-top:1rem; color:#1e40af; cursor:pointer; }
         .hidden { display:none; }
+        .show-password { display:flex; align-items:center; font-size:0.9rem; margin-top:0.2rem; }
+        .show-password input { margin-right:0.5rem; }
     </style>
 </head>
 <body>
@@ -22,7 +24,11 @@
         <h2>Login</h2>
         <form id="loginForm">
             <input type="text" name="username" placeholder="Username" required>
-            <input type="password" name="password" placeholder="Password" required>
+            <input type="password" id="loginPassword" name="password" placeholder="Password" required>
+            <div class="show-password">
+                <input type="checkbox" id="loginShowPassword">
+                <label for="loginShowPassword">Show Password</label>
+            </div>
             <button type="submit">Login</button>
         </form>
         <div class="toggle" onclick="toggleForms()">Don't have an account? Register</div>
@@ -32,7 +38,12 @@
         <h2>Register</h2>
         <form id="registerForm">
             <input type="text" name="username" placeholder="Username" required>
-            <input type="password" name="password" placeholder="Password" required>
+            <input type="password" id="registerPassword" name="password" placeholder="Password" required>
+            <input type="password" id="registerConfirmPassword" name="confirmPassword" placeholder="Confirm Password" required>
+            <div class="show-password">
+                <input type="checkbox" id="registerShowPassword">
+                <label for="registerShowPassword">Show Passwords</label>
+            </div>
             <button type="submit">Register</button>
         </form>
         <div class="toggle" onclick="toggleForms()">Already have an account? Login</div>
@@ -47,6 +58,15 @@ function toggleForms() {
     loginSection.classList.toggle('hidden');
     registerSection.classList.toggle('hidden');
 }
+
+// Show/hide password toggle
+document.getElementById('loginShowPassword').addEventListener('change', e => {
+    document.getElementById('loginPassword').type = e.target.checked ? 'text' : 'password';
+});
+document.getElementById('registerShowPassword').addEventListener('change', e => {
+    document.getElementById('registerPassword').type = e.target.checked ? 'text' : 'password';
+    document.getElementById('registerConfirmPassword').type = e.target.checked ? 'text' : 'password';
+});
 
 // Login
 document.getElementById('loginForm').addEventListener('submit', async e => {
@@ -72,8 +92,15 @@ document.getElementById('loginForm').addEventListener('submit', async e => {
 // Register
 document.getElementById('registerForm').addEventListener('submit', async e => {
     e.preventDefault();
-    const formData = new FormData(e.target);
-    const data = { username: formData.get('username'), password: formData.get('password') };
+    const username = e.target.username.value.trim();
+    const password = e.target.password.value;
+    const confirmPassword = e.target.confirmPassword.value;
+
+    if(password !== confirmPassword){
+        alert("Passwords do not match!");
+        return;
+    }
+    const data = { username, password };
 
     const res = await fetch('/api/register', {
         method:'POST',
