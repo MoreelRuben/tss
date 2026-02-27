@@ -434,27 +434,40 @@ function analyzeZones(data, zones, metric, sport){
 
 function storeZones(rolling, userId, sport) {
   const metrics = ['hr', 'power', 'speed'];
+  const TOTAL_ZONES = 7;
 
   metrics.forEach(metric => {
     const maxValue = rolling[metric];
     if (!maxValue) return;
 
-    const zones = calculateZones(maxValue, sport, metric);
+    let zones = calculateZones(maxValue, sport, metric) || [];
 
-    if(zones != null){
-      db.run(
-        `DELETE FROM zones 
-        WHERE user_id = ? AND sport = ? AND metric = ?`,
-        [userId, sport, metric]
-      );
-      zones.forEach(z => {
-        db.run(
-          `INSERT INTO zones (user_id, sport, metric, zone, min, max)
-          VALUES (?, ?, ?, ?, ?, ?)`,
-          [userId, sport, metric, z.zone, z.min, z.max]
-        );
+    // Vul aan tot 7 zones
+    while (zones.length < TOTAL_ZONES) {
+      zones.push({
+        zone: zones.length + 1,
+        min: zones.length > 0 ? zones[zones.length - 1].max : 0,
+        max: maxValue
       });
     }
+
+    // Start een transactie
+    db.serialize(() => {
+      db.run(
+        `DELETE FROM zones WHERE user_id = ? AND sport = ? AND metric = ?`,
+        [userId, sport, metric]
+      );
+
+      const stmt = db.prepare(
+        `INSERT INTO zones (user_id, sport, metric, zone, min, max) VALUES (?, ?, ?, ?, ?, ?)`
+      );
+
+      zones.forEach(z => {
+        stmt.run([userId, sport, metric, z.zone, z.min, z.max]);
+      });
+
+      stmt.finalize(); // Zorgt dat alles wordt geschreven
+    });
   });
 }
 
