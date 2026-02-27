@@ -115,6 +115,12 @@ app.get('/api/user', authenticateToken, (req, res) => {
 
 //___________________________________________________________________________________
 
+app.post('/api/validate-token', authenticateToken, (req, res) => {
+    res.json({ valid: true, user: req.user });
+});
+
+//_____________________________________________________________________________________
+
 
 app.post('/upload', authenticateToken, upload.single('tcxfile'), (req, res) => {
     if (!req.file) return res.status(400).send('No file uploaded');
