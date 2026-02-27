@@ -90,6 +90,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Tables for each metric
             for (const metric in sports[sport]) {
+                if(sport === 'Biking' && metric === "speed"){
+                    continue;
+                }
+                if(sport === 'Other' && metric === "hr"){
+                    continue;
+                }
                 const zones = sports[sport][metric];
 
                 const metricTitle = document.createElement('h3');

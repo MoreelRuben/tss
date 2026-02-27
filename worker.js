@@ -447,7 +447,7 @@ function storeZones(rolling, userId, sport) {
       zones.push({
         zone: zones.length + 1,
         min: zones.length > 0 ? zones[zones.length - 1].max : 0,
-        max: maxValue
+        max: Math.round(maxValue)
       });
     }
 
